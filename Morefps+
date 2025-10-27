@@ -1,0 +1,200 @@
+--⚙️ CHỐNG THROWN + DỌN RESOURCES (v2 GUI by TocTiz)
+--✅ Có GUI xác nhận bật/tắt + thông báo CoreGui: More FPS / AntiLag by TocTiz
+
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local task = task
+
+-- 🧱 Tạo GUI xác nhận
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AntiLagGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = CoreGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 260, 0, 130)
+Frame.Position = UDim2.new(0.5, -130, 0.5, -65)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = Frame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "⚙️ AntiLag by TocTiz"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.Parent = Frame
+
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(0.8, 0, 0, 40)
+Button.Position = UDim2.new(0.1, 0, 0.55, 0)
+Button.BackgroundColor3 = Color3.fromRGB(40, 170, 70)
+Button.Text = "BẬT CHỐNG LAG"
+Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.Font = Enum.Font.GothamBold
+Button.TextSize = 17
+Button.Parent = Frame
+
+local UICorner2 = Instance.new("UICorner")
+UICorner2.CornerRadius = UDim.new(0, 10)
+UICorner2.Parent = Button
+
+-- 🛡️ Hệ thống chính
+local protected = setmetatable({}, { __mode = "k" })
+local Thrown
+
+local function getNil(name, class)
+	for _, v in next, getnilinstances() do
+		if v.ClassName == class and v.Name == name then
+			return v
+		end
+	end
+end
+
+local keep1 = getNil("Ring", "MeshPart")
+local keep2 = getNil("Model", "Model")
+
+local function baoVeConCua(t)
+	if not t then return end
+	for _, v in ipairs(t:GetChildren()) do
+		protected[v] = true
+	end
+end
+
+local function daBaoVe(inst)
+	return (inst and protected[inst]) == true
+end
+
+local function huyAnToan(obj)
+	if not obj or not obj.Parent then return end
+	pcall(function() obj:Destroy() end)
+end
+
+local function khiThemCon(child)
+	if daBaoVe(child) then return end
+	task.defer(function()
+		if child and child.Parent and Thrown then
+			if child.Parent == Thrown or child:IsDescendantOf(Thrown) then
+				huyAnToan(child)
+			end
+		end
+	end)
+end
+
+local ketNoiCon, ketNoiDesc
+local function ganTinHieuThrown(t)
+	if ketNoiCon then ketNoiCon:Disconnect() ketNoiCon = nil end
+	if ketNoiDesc then ketNoiDesc:Disconnect() ketNoiDesc = nil end
+	if not t then return end
+	ketNoiCon = t.ChildAdded:Connect(khiThemCon)
+	ketNoiDesc = t.DescendantAdded:Connect(khiThemCon)
+end
+
+local function khiWorkspaceThem(ch)
+	if ch.Name == "Thrown" then
+		Thrown = ch
+		baoVeConCua(Thrown)
+		ganTinHieuThrown(Thrown)
+		warn("🛡️ Đã kết nối lại với workspace.Thrown mới")
+	end
+end
+
+-- 🧩 Chạy khi bấm nút kích hoạt
+local function BatAntiLag()
+	-- Thông báo CoreGui
+	pcall(function()
+		StarterGui:SetCore("SendNotification", {
+			Title = "🧠 More FPS",
+			Text = "AntiLag by TocTiz đã bật!",
+			Duration = 4
+		})
+	end)
+
+	local tonTai = Workspace:FindFirstChild("Thrown")
+	if tonTai then
+		Thrown = tonTai
+		baoVeConCua(Thrown)
+		ganTinHieuThrown(Thrown)
+		warn("🛡️ Đã phát hiện workspace.Thrown có sẵn")
+	end
+	Workspace.ChildAdded:Connect(khiWorkspaceThem)
+
+	local cuInstanceNew = Instance.new
+	do
+		local function taoAnToan(className, parent)
+			if parent and Thrown then
+				local ok = pcall(function()
+					return (parent == Thrown) or parent:IsDescendantOf(Thrown)
+				end)
+				if ok then
+					return cuInstanceNew(className)
+				end
+			end
+			return cuInstanceNew(className, parent)
+		end
+		Instance.new = taoAnToan
+	end
+
+	local cu_newindex
+	if hookmetamethod then
+		local thanhCong, loi = pcall(function()
+			cu_newindex = hookmetamethod(game, "__newindex", function(self, index, value)
+				if index == "Parent" and value and Thrown then
+					local ok, laDesc = pcall(function()
+						return (value == Thrown) or value:IsDescendantOf(Thrown)
+					end)
+					if ok and laDesc then
+						if daBaoVe(self) then
+							return cu_newindex(self, index, value)
+						end
+						return true
+					end
+				end
+				return cu_newindex(self, index, value)
+			end)
+		end)
+		if not thanhCong then
+			warn("⚠️ Không thể hookmetamethod:", loi)
+		end
+	else
+		warn("⚠️ Không có hookmetamethod; dùng tín hiệu + Instance.new hook.")
+	end
+
+	if Thrown then
+		for _, c in ipairs(Thrown:GetChildren()) do
+			if not daBaoVe(c) then
+				huyAnToan(c)
+			end
+		end
+	end
+
+	task.spawn(function()
+		while task.wait(0.3) do
+			local res = ReplicatedStorage:FindFirstChild("Resources")
+			if res then
+				for _, c in ipairs(res:GetChildren()) do
+					if c ~= keep1 and c ~= keep2 then
+						huyAnToan(c)
+					end
+				end
+			end
+		end
+	end)
+
+	Frame:Destroy()
+	print("✅ AntiLag đã bật thành công.")
+end
+
+Button.MouseButton1Click:Connect(BatAntiLag)
